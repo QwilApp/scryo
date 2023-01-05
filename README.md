@@ -38,7 +38,7 @@ The output will be in the following format, with an entry for every parsed file:
 {
   "path/to/file.js": {
     "used": [],  // Array of CommmandUseObj (see definition below)
-    "added": [],  // Array of CommmandAddObj (see definition below)
+    "added": [], // Array of CommmandAddObj (see definition below)
     "tests": []  // Array of TestObj (see definition below)
   }
 }
@@ -51,9 +51,9 @@ The output will be in the following format, with an entry for every parsed file:
 **`CommmandUseObj`:**
 ```text
 {
-  "name": String, // name of the cy command used
+  "name": String,  // name of the cy command used
   "start": Number, // char offset in file where usage started
-  "end": Number, // char offset in file where usage ended
+  "end": Number,   // char offset in file where usage ended
   "chain": Array[String], // chain of cy calls leading to this. 
                           // e.g cy.a().b().c() will result in {"chain": ["a", "b"], "name": "c"}
 }
@@ -62,10 +62,10 @@ The output will be in the following format, with an entry for every parsed file:
 **`CommmandAddObj`:**
 ```text
 {
-  "name": String, // name of the Cypress command added
+  "name": String,  // name of the Cypress command added
   "start": Number, // char offset in file where definition started
-  "end": Number, // char offset in file where definition ended
-  "cyMethodsUsed": Array[CommmandUseObj], // cy methods used within the implementation of this command
+  "end": Number,   // char offset in file where definition ended
+  "cyMethodsUsed": Array[CommmandUseObj],  // cy methods used within the implementation of this command
 }
 ```
 
@@ -76,7 +76,7 @@ The output will be in the following format, with an entry for every parsed file:
                          // e.g. describe("a", () => { it("b", () => {...}) }) results in {"name": ["a", "b"]}
   "scope": Array[ScopeObj], // Describes nesting scope
   "start": Number, // char offset in file where definition started
-  "end": Number, // char offset in file where definition ended
+  "end": Number,   // char offset in file where definition ended
   "startFunc": Number, // char offset in file where definition of test implementation function started
   "skip"?: Boolean, // If this test was effectively skipped, either by it.skip or describe.skip on parent scope
   "only"?: Boolean, // If this test was effectively set to "only", either by it.only or describe.only on parent scope
@@ -88,7 +88,7 @@ The output will be in the following format, with an entry for every parsed file:
 {
   "func":  "it" | "it.only" | "it.skip" |  "describe" | "describe.only" | "describe.skip",
   "start": Number, // char offset in file where definition started
-  "end": Number, // char offset in file where definition ended
+  "end": Number,   // char offset in file where definition ended
   "startFunc": Number, // char offset in file where definition of test implementation function started
   "skip"?: Boolean, // If .skip
   "only"?: Boolean, // If .only
