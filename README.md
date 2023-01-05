@@ -34,7 +34,7 @@ scryo dump <files_or_dirs>
 This will parse js file(s) in the given files/directories and emit the parsed content as JSON to stdout.
 
 The output will be in the following format, with an entry for every parsed file:
-```json
+```text
 {
   "path/to/file.js": {
     "used": [],  // Array of CommmandUseObj (see definition below)
@@ -49,7 +49,7 @@ The output will be in the following format, with an entry for every parsed file:
 * `"tests"` will list out all the Cypress tests defined in that file
 
 **`CommmandUseObj`:**
-```json
+```text
 {
   "name": String, // name of the cy command used
   "start": Number, // char offset in file where usage started
@@ -60,7 +60,7 @@ The output will be in the following format, with an entry for every parsed file:
 ```
 
 **`CommmandAddObj`:**
-```json
+```text
 {
   "name": String, // name of the Cypress command added
   "start": Number, // char offset in file where definition started
@@ -70,7 +70,7 @@ The output will be in the following format, with an entry for every parsed file:
 ```
 
 **`TestObj`:**
-```json
+```text
 {
   "name": Array[String], // Test descriptions.
                          // e.g. describe("a", () => { it("b", () => {...}) }) results in {"name": ["a", "b"]}
@@ -84,7 +84,7 @@ The output will be in the following format, with an entry for every parsed file:
 ```
 
 **`ScopeObj`:**
-```json
+```text
 {
   "func":  "it" | "it.only" | "it.skip" |  "describe" | "describe.only" | "describe.skip",
   "start": Number, // char offset in file where definition started
