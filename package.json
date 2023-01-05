@@ -1,0 +1,19 @@
+{
+  "name": "shazam",
+  "version": "0.1.0",
+  "description": "Parses cypress test files to extract Command definition/usage and tests",
+  "main": "index.js",
+  "repository": "git@github.com:QwilApp/shazam.git",
+  "author": "Shawn Chin",
+  "license": "MIT",
+  "private": false,
+  "bin": {
+    "shazam": "./index.js"
+  },
+  "dependencies": {
+    "acorn": "^8.8.1",
+    "acorn-walk": "^8.2.0",
+    "commander": "^9.4.1",
+    "glob": "^8.0.3"
+  }
+}
