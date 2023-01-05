@@ -32,3 +32,190 @@ scryo dump <files_or_dirs>
 ```
 
 This will parse js file(s) in the given files/directories and emit the parsed content as JSON to stdout.
+
+The output will be in the following format, with an entry for every parsed file:
+```json
+{
+  "path/to/file.js": {
+    "used": [],  // Array of CommmandUseObj (see definition below)
+    "added": [],  // Array of CommmandAddObj (see definition below)
+    "tests": []  // Array of TestObj (see definition below)
+  }
+}
+```
+
+* `"used"` will list out all the Cypress commands used in that file
+* `"added"` will list out all the Cypress commands added in that file
+* `"tests"` will list out all the Cypress tests defined in that file
+
+**`CommmandUseObj`:**
+```json
+{
+  "name": String, // name of the cy command used
+  "start": Number, // char offset in file where usage started
+  "end": Number, // char offset in file where usage ended
+  "chain": Array[String], // chain of cy calls leading to this. 
+                          // e.g cy.a().b().c() will result in {"chain": ["a", "b"], "name": "c"}
+}
+```
+
+**`CommmandAddObj`:**
+```json
+{
+  "name": String, // name of the Cypress command added
+  "start": Number, // char offset in file where definition started
+  "end": Number, // char offset in file where definition ended
+  "cyMethodsUsed": Array[CommmandUseObj], // cy methods used within the implementation of this command
+}
+```
+
+**`TestObj`:**
+```json
+{
+  "name": Array[String], // Test descriptions.
+                         // e.g. describe("a", () => { it("b", () => {...}) }) results in {"name": ["a", "b"]}
+  "scope": Array[ScopeObj], // Describes nesting scope
+  "start": Number, // char offset in file where definition started
+  "end": Number, // char offset in file where definition ended
+  "startFunc": Number, // char offset in file where definition of test implementation function started
+  "skip"?: Boolean, // If this test was effectively skipped, either by it.skip or describe.skip on parent scope
+  "only"?: Boolean, // If this test was effectively set to "only", either by it.only or describe.only on parent scope
+}
+```
+
+**`ScopeObj`:**
+```json
+{
+  "func":  "it" | "it.only" | "it.skip" |  "describe" | "describe.only" | "describe.skip",
+  "start": Number, // char offset in file where definition started
+  "end": Number, // char offset in file where definition ended
+  "startFunc": Number, // char offset in file where definition of test implementation function started
+  "skip"?: Boolean, // If .skip
+  "only"?: Boolean, // If .only
+}
+```
+
+For example, given test file:
+```javascript
+describe("Login", () => {
+  describe("Error conditions", () => {
+    it("should show error snackbar on submit if offline", () => {
+      cy.navigateToLogin()
+        .goOffline()
+        .submitLogin({username: "bob", password: "builder"})
+        .expectErrorSnackbar();
+    })
+  })
+})
+```
+
+We expected to get:
+```json
+{
+  "cypress/e2e/login/errorConditions.js": {
+    "tests": [
+      {
+        "name": [
+          "Login",
+          "Error conditions",
+          "should show error snackbar on submit if offline"
+        ],
+        "scope": [
+          {
+            "func": "describe",
+            "start": 0,
+            "end": 286
+          },
+          {
+            "func": "describe",
+            "start": 28,
+            "end": 283
+          },
+          {
+            "func": "it",
+            "start": 69,
+            "end": 278
+          }
+        ],
+        "start": 69,
+        "end": 278,
+        "funcStart": 123,
+        "funcEnd": 277,
+        "cyMethodsUsed": [
+          {
+            "name": "navigateToLogin",
+            "start": 140,
+            "end": 157,
+            "chain": []
+          },
+          {
+            "name": "goOffline",
+            "start": 167,
+            "end": 178,
+            "chain": [
+              "navigateToLogin"
+            ]
+          },
+          {
+            "name": "submitLogin",
+            "start": 188,
+            "end": 239,
+            "chain": [
+              "navigateToLogin",
+              "goOffline"
+            ]
+          },
+          {
+            "name": "expectErrorSnackbar",
+            "start": 249,
+            "end": 270,
+            "chain": [
+              "navigateToLogin",
+              "goOffline",
+              "submitLogin"
+            ]
+          }
+        ]
+      }
+    ],
+    "added": [],
+    "used": [
+      {
+        "name": "navigateToLogin",
+        "start": 140,
+        "end": 157,
+        "chain": []
+      },
+      {
+        "name": "goOffline",
+        "start": 167,
+        "end": 178,
+        "chain": [
+          "navigateToLogin"
+        ]
+      },
+      {
+        "name": "submitLogin",
+        "start": 188,
+        "end": 239,
+        "chain": [
+          "navigateToLogin",
+          "goOffline"
+        ]
+      },
+      {
+        "name": "expectErrorSnackbar",
+        "start": 249,
+        "end": 270,
+        "chain": [
+          "navigateToLogin",
+          "goOffline",
+          "submitLogin"
+        ]
+      }
+    ]
+  }
+}
+
+
+```
