@@ -1,5 +1,6 @@
 # scryo
-Parses cypress test files to extract Command definition/usage and tests.
+Cypress test parser that can extract test structure, and Cypress Command definitions and usage.
+
 
 ## Usage
 
@@ -11,7 +12,7 @@ This will parse js file(s) in the given files/directories, and print out the loc
 1. The command was defined i.e. `Cypress.Command.add("cmdName", ...)`
 2. The command was called i.e. `cy.cmdName(...)` or even `cy.anotherCmd(...).cmdName(...)`.
 
-Example Usage:
+**Example Usage:**
 ```
 [me@home]$ npx scryo find expectErrorSnackbar ./cypress
 
@@ -31,7 +32,15 @@ Example Usage:
 scryo dump <files_or_dirs>
 ```
 
-This will parse js file(s) in the given files/directories and emit the parsed content as JSON to stdout.
+This will parse js file(s) in the given files/directories and emit the parsed content as JSON to stdout. 
+This output will allow one to write reasonably complex validation rules without having to worry about source parsing.
+
+Examples of validations than can be implemented with minimal effort:
+* Detecting duplicate command definitions
+* Identifying (and auto-deleting) unused cypress commands
+* Enforcing test naming and organisation conventions
+* e.t.c.
+
 
 The output will be in the following format, with an entry for every parsed file:
 ```text
@@ -95,7 +104,12 @@ The output will be in the following format, with an entry for every parsed file:
 }
 ```
 
-For example, given test file:
+**Example Usage:**
+```
+[me@home]$ npx scryo dump cypress/e2e/login/errorConditions.js
+```
+
+Where the file contains:
 ```javascript
 describe("Login", () => {
   describe("Error conditions", () => {
