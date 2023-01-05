@@ -1,5 +1,5 @@
 {
-  "name": "shazam",
+  "name": "scryo",
   "version": "0.1.0",
   "description": "Parses cypress test files to extract Command definition/usage and tests",
   "main": "index.js",
@@ -8,7 +8,7 @@
   "license": "MIT",
   "private": false,
   "bin": {
-    "shazam": "./index.js"
+    "scryo": "./index.js"
   },
   "dependencies": {
     "acorn": "^8.8.1",

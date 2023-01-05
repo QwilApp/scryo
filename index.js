@@ -148,10 +148,10 @@ function resolvePaths(paths) {
     }
     let stat = fs.lstatSync(p);
     if (stat.isFile()) {
-      if (p.endsWith(".js") || p.endsWith(".ts")) {
+      if (p.endsWith(".js")) {
         resolved.add(p);
       } else {
-        quit(`ERROR: unsupported file "${p}". Expecting *.js or *.ts`)
+        quit(`ERROR: unsupported file "${p}". Expecting *.js`)
       }
     } else if (stat.isDirectory()) {
       glob.sync("**/*.js", { cwd: p }).forEach((f) => {
