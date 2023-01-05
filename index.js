@@ -2,9 +2,9 @@
 const path = require("path");
 const fs = require("fs");
 const glob = require("glob");
-const assert = require('assert').strict;
 const { Command } = require('commander');
 const { findCyStuff, readFileAndParseAST } = require('./parser');
+const { mapCharOffsetToLineno } = require('./utils');
 const pjs =  require("./package.json");
 
 
@@ -50,7 +50,7 @@ Examples:
 
 
 async function doDump(paths) {
-  const filenames = await resolvePaths(paths);
+  const filenames = resolvePaths(paths);
   let out = {};
   for (const filename of filenames) {
     out[filename] = findCyStuff(
@@ -62,7 +62,7 @@ async function doDump(paths) {
 
 
 async function doFind(command, paths) {
-  const filenames = await resolvePaths(paths);
+  const filenames = resolvePaths(paths);
   const added = [];
   const used = [];
 
@@ -129,48 +129,10 @@ async function doFind(command, paths) {
 }
 
 function formatMatchLocation(match) {
-  const loc = mapCharIndexToLineno(match.filename, match.start);
+  const loc = mapCharOffsetToLineno(match.filename, match.start);
   return `${path.resolve(match.filename)}:${loc.line}:${loc.col}`;
 }
 
-function _cachedGetFileLineInfo() {
-  let cache = {};
-  return (filename) => {
-    if (!(filename in cache)) {
-      let content = fs.readFileSync(filename, { encoding: "utf8", flag: 'r' });
-      cache[filename] = {
-        size: content.length,
-        lineLengths: content.split("\n").map((line) => line.length + 1),  // +1 to account for stripped "\n"
-      }
-    }
-    return cache[filename];
-  }
-}
-
-const getFileLineInfo = _cachedGetFileLineInfo();
-
-function mapCharIndexToLineno(filename, index) {
-  /**
-   * returns {line: X, col: Y} where X and Y are integers starting from 1 (not 0).
-   */
-
-  const info = getFileLineInfo(filename);
-  assert(index <= info.size, "index exceeds file size");
-
-  let runningSum = 0;
-  for (let i = 0; i < info.lineLengths.length; i++) {
-    let currentLineLength = info.lineLengths[i];
-    if (runningSum + currentLineLength > index) {
-      return {
-        line: i + 1,
-        col: index - runningSum + 1,
-      }
-    } else {
-      runningSum += currentLineLength;
-    }
-  }
-
-}
 
 function quit(message) {
   console.error(message);
@@ -178,7 +140,7 @@ function quit(message) {
 }
 
 
-async function resolvePaths(paths) {
+function resolvePaths(paths) {
   let resolved = new Set();
   for (const p of new Set(paths)) {
     if (!fs.existsSync(p)) {

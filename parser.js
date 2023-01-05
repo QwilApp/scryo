@@ -60,9 +60,11 @@ function findCyStuff(ast, options) {
   let used = [];
   let tests = [];
 
+  // TODO: handle it.skip, it.only, describe.skip describe.only
+
   if (ast) {
-    walk.simple(ast, {
-      CallExpression: function (node) {
+    walk.ancestor(ast, {
+      CallExpression: function (node, _, ancestors) {
         const dottedName = parseCallee(node);
         if (!dottedName) {
           // this call should be ignored. so do nothing.
@@ -100,6 +102,35 @@ function findCyStuff(ast, options) {
             end: node.end,  // end at the end of the full call, including params and inner func.
             chain: chain,
           })
+        } else if (findTests && isTestIdentifier(dottedName)) {
+          let funcNode = node.arguments[1];
+
+          let scopeNodes = ancestors
+            .filter((n) => n.type === "CallExpression")
+            .map((n) => ({node: n, dotted: parseCallee(n)}))
+            .filter((o) => o.dotted && isTestOrDescribeIdentifier(o.dotted));
+
+          let scope = scopeNodes.map((o) => {
+            return {
+              func: o.dotted,
+              start: o.node.start,
+              end: o.node.end,
+              ...(isSkip(o.dotted) && {skip: true}),
+              ...(isOnly(o.dotted) && {only: true}),
+            }
+          })
+
+          tests.push({
+            name: scopeNodes.map((o) => o.node.arguments[0].value),
+            scope: scope,
+            start: node.start,
+            end: node.end,
+            funcStart: funcNode.start,
+            funcEnd: funcNode.end,
+            ...(_options.includeCyMethodsUsed && { cyMethodsUsed: findCyStuff(funcNode, { find: { used: true } }).used }),
+            ...(scope.some((n) => n.skip) && { skip: true}),
+            ...(scope.some((n) => n.only) && { only: true}),
+          })
         }
       }
     });
@@ -111,6 +142,28 @@ function findCyStuff(ast, options) {
     ...(findTests && { tests }),
   };
 }
+
+
+function isTestOrDescribeIdentifier(ident) {
+  return isTestIdentifier(ident) || isDescribeIdentifier(ident);
+}
+
+function isTestIdentifier(ident) {
+  return ident === "it" || ident.startsWith("it.");
+}
+
+function isDescribeIdentifier(ident) {
+  return ident === "describe" || ident.startsWith("describe.");
+}
+
+function isSkip(ident) {
+  return ident.endsWith(".skip");
+}
+
+function isOnly(ident) {
+  return ident.endsWith(".only");
+}
+
 
 function IgnoreMe(node) {
   this.node = node;
@@ -159,6 +212,7 @@ function parseCallee(node) {
 
 
 module.exports = {
+  parse,
   findCyStuff,
   readFileAndParseAST,
 }
