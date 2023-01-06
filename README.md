@@ -86,7 +86,8 @@ The output will be in the following format, with an entry for every parsed file:
   "scope": Array[ScopeObj], // Describes nesting scope
   "start": Number, // char offset in file where definition started
   "end": Number,   // char offset in file where definition ended
-  "startFunc": Number, // char offset in file where definition of test implementation function started
+  "funcStart": Number, // char offset in file where definition of test implementation function started
+  "funcEnd": Number, // char offset in file where definition of test implementation function ended
   "skip"?: Boolean, // If this test was effectively skipped, either by it.skip or describe.skip on parent scope
   "only"?: Boolean, // If this test was effectively set to "only", either by it.only or describe.only on parent scope
 }
@@ -98,7 +99,6 @@ The output will be in the following format, with an entry for every parsed file:
   "func":  "it" | "it.only" | "it.skip" |  "describe" | "describe.only" | "describe.skip",
   "start": Number, // char offset in file where definition started
   "end": Number,   // char offset in file where definition ended
-  "startFunc": Number, // char offset in file where definition of test implementation function started
   "skip"?: Boolean, // If .skip
   "only"?: Boolean, // If .only
 }
