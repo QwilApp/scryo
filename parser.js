@@ -121,7 +121,7 @@ function findCyStuff(ast, options) {
           });
 
           tests.push({
-            name: scopeNodes.map((o) => getLiteralValue(o.node.arguments[0])),
+            name: scopeNodes.map((o) => inferTestName(o.node)),
             scope: scope,
             start: node.start,
             end: node.end,
@@ -143,15 +143,19 @@ function findCyStuff(ast, options) {
   };
 }
 
-function getLiteralValue(node) {
+function inferTestName(testCallNode) {
+  const node = testCallNode.arguments[0];
+
   if (node.type === "Literal") {
     return node.value;
   } else if (node.type === "TemplateLiteral") {
     let expressions = node.expressions.map((i) => `\${${i.name}}`);
     let quasis = node.quasis.map((q) => q.value.raw);
     return interleaveArray(quasis, expressions).join("");
+  } else if (node.type === "Identifier") {
+    return `\${${node.name}}`;
   } else {
-    assert(false, `Expected Literal or TemplateLiteral node, got ${node}`);
+    return `[Unparseable: ${node.type}]`
   }
 }
 
