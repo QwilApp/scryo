@@ -88,6 +88,7 @@ The output will be in the following format, with an entry for every parsed file:
   "end": Number,   // char offset in file where definition ended
   "funcStart": Number, // char offset in file where definition of test implementation function started
   "funcEnd": Number, // char offset in file where definition of test implementation function ended
+  "cyMethodsUsed": Array[CommmandUseObj],  // cy methods used within the implementation of this test
   "skip"?: Boolean, // If this test was effectively skipped, either by it.skip or describe.skip on parent scope
   "only"?: Boolean, // If this test was effectively set to "only", either by it.only or describe.only on parent scope
 }
