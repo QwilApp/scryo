@@ -59,6 +59,20 @@ function getCachedFileLineInfo(filename) {
   return _fileLineInfoCache.info;
 }
 
+/**
+ * [a1, a2, a3], [b1, b2] => [a1, b1, a2, b2, a3]
+ */
+function interleaveArray(a, b) {
+  let out = []
+  let length = Math.max(a.length, b.length);
+  for (let i = 0; i < length; i++) {
+    i < a.length && out.push(a[i]);
+    i < b.length && out.push(b[i]);
+  }
+  return out;
+}
+
 module.exports = {
+  interleaveArray,
   mapCharOffsetToLineno,
 }

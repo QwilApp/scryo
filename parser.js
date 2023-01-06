@@ -2,6 +2,8 @@ const acorn = require("acorn");
 const walk = require("acorn-walk");
 const fs = require("fs");
 const assert = require('assert').strict;
+const { interleaveArray } = require("./utils");
+
 
 function parse(source) {
   /**
@@ -60,8 +62,6 @@ function findCyStuff(ast, options) {
   let used = [];
   let tests = [];
 
-  // TODO: handle it.skip, it.only, describe.skip describe.only
-
   if (ast) {
     walk.ancestor(ast, {
       CallExpression: function (node, _, ancestors) {
@@ -118,10 +118,10 @@ function findCyStuff(ast, options) {
               ...(isSkip(o.dotted) && {skip: true}),
               ...(isOnly(o.dotted) && {only: true}),
             }
-          })
+          });
 
           tests.push({
-            name: scopeNodes.map((o) => o.node.arguments[0].value),
+            name: scopeNodes.map((o) => getLiteralValue(o.node.arguments[0])),
             scope: scope,
             start: node.start,
             end: node.end,
@@ -141,6 +141,18 @@ function findCyStuff(ast, options) {
     ...(findUsed && { used }),
     ...(findTests && { tests }),
   };
+}
+
+function getLiteralValue(node) {
+  if (node.type === "Literal") {
+    return node.value;
+  } else if (node.type === "TemplateLiteral") {
+    let expressions = node.expressions.map((i) => `\${${i.name}}`);
+    let quasis = node.quasis.map((q) => q.value.raw);
+    return interleaveArray(quasis, expressions).join("");
+  } else {
+    assert(false, `Expected Literal or TemplateLiteral node, got ${node}`);
+  }
 }
 
 
