@@ -69,7 +69,8 @@ function findCyStuff(ast, options) {
         if (!dottedName) {
           // this call should be ignored. so do nothing.
         } else if (findAdded && dottedName === "Cypress.Commands.add") {
-          const [nameNode, funcNode] = node.arguments;
+          const nameNode = node.arguments[0];
+          const funcNode = node.arguments.at(-1);  // Not [1] because there could be optional "options" arg there
           assert(nameNode.type === "Literal", "Cypress command name must be a literal string");
 
           // get cy methods used by this command
