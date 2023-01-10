@@ -42,13 +42,15 @@ at (${filePath}:${e.loc.line}:${e.loc.column})
 
 }
 
+const SUPPORTED_HOOKS = new Set(["before", "beforeEach", "after", "afterEach"]);
 
 function findCyStuff(ast, options) {
   const optionDefaults = {
     find: {
       added: true,
       used: true,
-      tests: true
+      tests: true,
+      hooks: true
     },
     // should we include "cyMethodsUsed" when we find added Cypress Command
     includeCyMethodsUsed: true,
@@ -57,10 +59,12 @@ function findCyStuff(ast, options) {
   const findAdded = Boolean(_options.find.added);
   const findUsed = Boolean(_options.find.used);
   const findTests = Boolean(_options.find.tests);
+  const findHooks = Boolean(_options.find.hooks);
 
   let added = [];
   let used = [];
   let tests = [];
+  let hooks = Object.fromEntries(Array.from(SUPPORTED_HOOKS).map((hook) => [hook, []]));
 
   if (ast) {
     walk.ancestor(ast, {
@@ -113,6 +117,7 @@ function findCyStuff(ast, options) {
 
           let scope = scopeNodes.map((o) => {
             return {
+              name: inferTestName(o.node),
               func: o.dotted,
               start: o.node.start,
               end: o.node.end,
@@ -122,7 +127,6 @@ function findCyStuff(ast, options) {
           });
 
           tests.push({
-            name: scopeNodes.map((o) => inferTestName(o.node)),
             scope: scope,
             start: node.start,
             end: node.end,
@@ -131,6 +135,45 @@ function findCyStuff(ast, options) {
             ...(_options.includeCyMethodsUsed && { cyMethodsUsed: findCyStuff(funcNode, { find: { used: true } }).used }),
             ...(scope.some((n) => n.skip) && { skip: true}),
             ...(scope.some((n) => n.only) && { only: true}),
+          })
+        } else if (findHooks && SUPPORTED_HOOKS.has(dottedName)) {
+          // Watch out for false positives. If wrong number or params, or is not function, assume this is not a hook.
+          if (node.arguments.length !== 1) {
+            return;
+          }
+          let funcNode = node.arguments[0];
+          if (funcNode.type !== "FunctionExpression" && funcNode.type !== "ArrowFunctionExpression") {
+            return
+          }
+
+          let scopeNodes = ancestors
+            .filter((n) => n.type === "CallExpression")
+            .map((n) => ({node: n, dotted: parseCallee(n)}))
+            .filter((o) => o.dotted && isTestOrDescribeIdentifier(o.dotted));
+
+          // also exclude calls to hooks if within it() scope
+          if (scopeNodes.some((o) => isTestIdentifier(o.dotted))) {
+            return;
+          }
+
+          let scope = scopeNodes.map((o) => {
+            return {
+              name: inferTestName(o.node),
+              func: o.dotted,
+              start: o.node.start,
+              end: o.node.end,
+              ...(isSkip(o.dotted) && {skip: true}),
+              ...(isOnly(o.dotted) && {only: true}),
+            }
+          });
+
+          hooks[dottedName].push({
+            scope: scope,
+            start: node.start,
+            end: node.end,
+            funcStart: funcNode.start,
+            funcEnd: funcNode.end,
+            ...(_options.includeCyMethodsUsed && { cyMethodsUsed: findCyStuff(funcNode, { find: { used: true } }).used }),
           })
         }
       }
@@ -141,6 +184,7 @@ function findCyStuff(ast, options) {
     ...(findAdded && { added }),
     ...(findUsed && { used }),
     ...(findTests && { tests }),
+    ...(findHooks && { hooks }),
   };
 }
 

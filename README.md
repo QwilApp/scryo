@@ -49,6 +49,12 @@ The output will be in the following format, with an entry for every parsed file:
     "used": [],  // Array of CommmandUseObj (see definition below)
     "added": [], // Array of CommmandAddObj (see definition below)
     "tests": []  // Array of TestObj (see definition below)
+    "hooks": {
+      "before": [],      // Array of HookObj (see definition below)
+      "beforeEach": [],  // Array of HookObj (see definition below)
+      "after": [],       // Array of HookObj (see definition below)
+      "afterEach": []    // Array of HookObj (see definition below)
+    }
   }
 }
 ```
@@ -81,8 +87,6 @@ The output will be in the following format, with an entry for every parsed file:
 **`TestObj`:**
 ```text
 {
-  "name": Array[String], // Test descriptions.
-                         // e.g. describe("a", () => { it("b", () => {...}) }) results in {"name": ["a", "b"]}
   "scope": Array[ScopeObj], // Describes nesting scope
   "start": Number, // char offset in file where definition started
   "end": Number,   // char offset in file where definition ended
@@ -94,12 +98,25 @@ The output will be in the following format, with an entry for every parsed file:
 }
 ```
 
+**`HookObj`:**
+```text
+{
+  "scope": Array[ScopeObj], // Describes nesting scope
+  "start": Number, // char offset in file where definition started
+  "end": Number,   // char offset in file where definition ended
+  "funcStart": Number, // char offset in file where definition of test implementation function started
+  "funcEnd": Number, // char offset in file where definition of test implementation function ended
+  "cyMethodsUsed": Array[CommmandUseObj],  // cy methods used within the implementation of this test
+}
+```
+
 **`ScopeObj`:**
 ```text
 {
   "func":  "it" | "it.only" | "it.skip" |  "describe" | "describe.only" | "describe.skip",
-  "start": Number, // char offset in file where definition started
-  "end": Number,   // char offset in file where definition ended
+  "name": String,   // Text description 
+  "start": Number,  // char offset in file where definition started
+  "end": Number,    // char offset in file where definition ended
   "skip"?: Boolean, // If .skip
   "only"?: Boolean, // If .only
 }
@@ -114,10 +131,13 @@ Where the file contains:
 ```javascript
 describe("Login", () => {
   describe("Error conditions", () => {
-    it("should show error snackbar on submit if offline", () => {
+    beforeEach(() => {
       cy.navigateToLogin()
-        .goOffline()
-        .submitLogin({username: "bob", password: "builder"})
+    })
+
+    it("should show error snackbar on submit if offline", () => {
+      cy.goOffline()
+        .submitLogin({ username: "bob", password: "builder" })
         .expectErrorSnackbar();
     })
   })
@@ -127,65 +147,85 @@ describe("Login", () => {
 We expected to get:
 ```json
 {
-  "cypress/e2e/login/errorConditions.js": {
+  "test.js": {
+    "added": [],
+    "used": [
+      {
+        "name": "navigateToLogin",
+        "start": 97,
+        "end": 114,
+        "chain": []
+      },
+      {
+        "name": "goOffline",
+        "start": 198,
+        "end": 209,
+        "chain": []
+      },
+      {
+        "name": "submitLogin",
+        "start": 219,
+        "end": 272,
+        "chain": [
+          "goOffline"
+        ]
+      },
+      {
+        "name": "expectErrorSnackbar",
+        "start": 282,
+        "end": 303,
+        "chain": [
+          "goOffline",
+          "submitLogin"
+        ]
+      }
+    ],
     "tests": [
       {
-        "name": [
-          "Login",
-          "Error conditions",
-          "should show error snackbar on submit if offline"
-        ],
         "scope": [
           {
+            "name": "Login",
             "func": "describe",
             "start": 0,
-            "end": 286
+            "end": 319
           },
           {
+            "name": "Error conditions",
             "func": "describe",
             "start": 28,
-            "end": 283
+            "end": 316
           },
           {
+            "name": "should show error snackbar on submit if offline",
             "func": "it",
-            "start": 69,
-            "end": 278
+            "start": 127,
+            "end": 311
           }
         ],
-        "start": 69,
-        "end": 278,
-        "funcStart": 123,
-        "funcEnd": 277,
+        "start": 127,
+        "end": 311,
+        "funcStart": 181,
+        "funcEnd": 310,
         "cyMethodsUsed": [
           {
-            "name": "navigateToLogin",
-            "start": 140,
-            "end": 157,
+            "name": "goOffline",
+            "start": 198,
+            "end": 209,
             "chain": []
           },
           {
-            "name": "goOffline",
-            "start": 167,
-            "end": 178,
-            "chain": [
-              "navigateToLogin"
-            ]
-          },
-          {
             "name": "submitLogin",
-            "start": 188,
-            "end": 239,
+            "start": 219,
+            "end": 272,
             "chain": [
-              "navigateToLogin",
               "goOffline"
             ]
           },
           {
             "name": "expectErrorSnackbar",
-            "start": 249,
-            "end": 270,
+            "start": 282,
+            "end": 303,
             "chain": [
-              "navigateToLogin",
               "goOffline",
               "submitLogin"
             ]
@@ -193,44 +233,41 @@ We expected to get:
         ]
       }
     ],
-    "added": [],
-    "used": [
-      {
-        "name": "navigateToLogin",
-        "start": 140,
-        "end": 157,
-        "chain": []
-      },
-      {
-        "name": "goOffline",
-        "start": 167,
-        "end": 178,
-        "chain": [
-          "navigateToLogin"
-        ]
-      },
-      {
-        "name": "submitLogin",
-        "start": 188,
-        "end": 239,
-        "chain": [
-          "navigateToLogin",
-          "goOffline"
-        ]
-      },
-      {
-        "name": "expectErrorSnackbar",
-        "start": 249,
-        "end": 270,
-        "chain": [
-          "navigateToLogin",
-          "goOffline",
-          "submitLogin"
-        ]
-      }
-    ]
+    "hooks": {
+      "before": [],
+      "beforeEach": [
+        {
+          "scope": [
+            {
+              "name": "Login",
+              "func": "describe",
+              "start": 0,
+              "end": 319
+            },
+            {
+              "name": "Error conditions",
+              "func": "describe",
+              "start": 28,
+              "end": 316
+            }
+          ],
+          "start": 69,
+          "end": 121,
+          "funcStart": 80,
+          "funcEnd": 120,
+          "cyMethodsUsed": [
+            {
+              "name": "navigateToLogin",
+              "start": 97,
+              "end": 114,
+              "chain": []
+            }
+          ]
+        }
+      ],
+      "after": [],
+      "afterEach": []
+    }
   }
 }
-
-
 ```
