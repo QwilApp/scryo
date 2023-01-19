@@ -69,8 +69,18 @@ The output will be in the following format, with an entry for every parsed file:
   "name": String,  // name of the cy command used
   "start": Number, // char offset in file where usage started
   "end": Number,   // char offset in file where usage ended
+  "arguments": Array[CommandArgObj],  // type and char offsets for command arguments 
   "chain": Array[String], // chain of cy calls leading to this. 
                           // e.g cy.a().b().c() will result in {"chain": ["a", "b"], "name": "c"}
+}
+```
+
+**`CommandArgObj`:**
+```text
+{
+  "type": String,  // node type for the argument, e.g. "ObjectExpression", "ArrowFunctionExpression", etc
+  "start": Number, // char offset in file where that argument started
+  "end": Number,   // char offset in file where that argument ended
 }
 ```
 
@@ -154,18 +164,27 @@ We expected to get:
         "name": "navigateToLogin",
         "start": 97,
         "end": 114,
+        "arguments": [],
         "chain": []
       },
       {
         "name": "goOffline",
         "start": 198,
         "end": 209,
+        "arguments": [],
         "chain": []
       },
       {
         "name": "submitLogin",
         "start": 219,
         "end": 272,
+        "arguments": [
+          {
+            "type": "ObjectExpression",
+            "start": 231,
+            "end": 271
+          }
+        ],
         "chain": [
           "goOffline"
         ]
@@ -174,6 +193,7 @@ We expected to get:
         "name": "expectErrorSnackbar",
         "start": 282,
         "end": 303,
+        "arguments": [],
         "chain": [
           "goOffline",
           "submitLogin"
@@ -211,12 +231,20 @@ We expected to get:
             "name": "goOffline",
             "start": 198,
             "end": 209,
+            "arguments": [],
             "chain": []
           },
           {
             "name": "submitLogin",
             "start": 219,
             "end": 272,
+            "arguments": [
+              {
+                "type": "ObjectExpression",
+                "start": 231,
+                "end": 271
+              }
+            ],
             "chain": [
               "goOffline"
             ]
@@ -225,6 +253,7 @@ We expected to get:
             "name": "expectErrorSnackbar",
             "start": 282,
             "end": 303,
+            "arguments": [],
             "chain": [
               "goOffline",
               "submitLogin"
@@ -260,6 +289,7 @@ We expected to get:
               "name": "navigateToLogin",
               "start": 97,
               "end": 114,
+              "arguments": [],
               "chain": []
             }
           ]
@@ -270,4 +300,5 @@ We expected to get:
     }
   }
 }
+
 ```

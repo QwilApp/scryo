@@ -101,10 +101,19 @@ function findCyStuff(ast, options) {
             return s.slice(0, -2);
           });
 
+          const arguments = node.arguments.map(a => {
+            return {  // simply return type and position of each argument so caller can target and parse if required
+              type: a.type,
+              start: a.start,
+              end: a.end,
+            }
+          });
+
           used.push({
             name: nameSegments.at(-1),
             start: node.callee.property.start,  // start at identifier in case this is chained
             end: node.end,  // end at the end of the full call, including params and inner func.
+            arguments: arguments,
             chain: chain,
           })
         } else if (findTests && isTestIdentifier(dottedName)) {
