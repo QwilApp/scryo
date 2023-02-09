@@ -84,6 +84,18 @@ The output will be in the following format, with an entry for every parsed file:
 }
 ```
 
+**`FuncCallObj`:**
+```text
+{
+  "name": String, // name of non-cy function call
+  "start": Number, // char offset in file where function call started. For dotted or chained calls, this points to
+                   // beginning of the func identifier i.e. in the case of "hello.kitty()", start would point to "k"
+  "rootStart": Number, // this points to actual start i.e. in the case of "hello.kitty()", start would point to "h"
+  "end": Number,   // char offset in file where function call ended
+  "arguments": Array[CommandArgObj],  // type and char offsets for function call arguments 
+}
+```
+
 **`CommmandAddObj`:**
 ```text
 {
@@ -91,6 +103,7 @@ The output will be in the following format, with an entry for every parsed file:
   "start": Number, // char offset in file where definition started
   "end": Number,   // char offset in file where definition ended
   "cyMethodsUsed": Array[CommmandUseObj],  // cy methods used within the implementation of this command
+  "otherFuncCalls": Array[FuncCallObj],  // function calls (excluding cy.*) within the implementation of this command
 }
 ```
 
@@ -103,6 +116,7 @@ The output will be in the following format, with an entry for every parsed file:
   "funcStart": Number, // char offset in file where definition of test implementation function started
   "funcEnd": Number, // char offset in file where definition of test implementation function ended
   "cyMethodsUsed": Array[CommmandUseObj],  // cy methods used within the implementation of this test
+  "otherFuncCalls": Array[FuncCallObj],  // function calls (excluding cy.*) within the implementation of this command
   "skip"?: Boolean, // If this test was effectively skipped, either by it.skip or describe.skip on parent scope
   "only"?: Boolean, // If this test was effectively set to "only", either by it.only or describe.only on parent scope
 }
@@ -117,6 +131,7 @@ The output will be in the following format, with an entry for every parsed file:
   "funcStart": Number, // char offset in file where definition of test implementation function started
   "funcEnd": Number, // char offset in file where definition of test implementation function ended
   "cyMethodsUsed": Array[CommmandUseObj],  // cy methods used within the implementation of this test
+  "otherFuncCalls": Array[FuncCallObj],  // function calls (excluding cy.*) within the implementation of this command
 }
 ```
 
@@ -142,7 +157,8 @@ Where the file contains:
 describe("Login", () => {
   describe("Error conditions", () => {
     beforeEach(() => {
-      cy.navigateToLogin()
+      const params = utils.getNavParams();
+      cy.navigateToLogin(params);
     })
 
     it("should show error snackbar on submit if offline", () => {
@@ -162,27 +178,33 @@ We expected to get:
     "used": [
       {
         "name": "navigateToLogin",
-        "start": 97,
-        "end": 114,
-        "arguments": [],
+        "start": 140,
+        "end": 163,
+        "arguments": [
+          {
+            "type": "Identifier",
+            "start": 156,
+            "end": 162
+          }
+        ],
         "chain": []
       },
       {
         "name": "goOffline",
-        "start": 198,
-        "end": 209,
+        "start": 248,
+        "end": 259,
         "arguments": [],
         "chain": []
       },
       {
         "name": "submitLogin",
-        "start": 219,
-        "end": 272,
+        "start": 269,
+        "end": 322,
         "arguments": [
           {
             "type": "ObjectExpression",
-            "start": 231,
-            "end": 271
+            "start": 281,
+            "end": 321
           }
         ],
         "chain": [
@@ -191,8 +213,8 @@ We expected to get:
       },
       {
         "name": "expectErrorSnackbar",
-        "start": 282,
-        "end": 303,
+        "start": 332,
+        "end": 353,
         "arguments": [],
         "chain": [
           "goOffline",
@@ -207,42 +229,42 @@ We expected to get:
             "name": "Login",
             "func": "describe",
             "start": 0,
-            "end": 319
+            "end": 369
           },
           {
             "name": "Error conditions",
             "func": "describe",
             "start": 28,
-            "end": 316
+            "end": 366
           },
           {
             "name": "should show error snackbar on submit if offline",
             "func": "it",
-            "start": 127,
-            "end": 311
+            "start": 177,
+            "end": 361
           }
         ],
-        "start": 127,
-        "end": 311,
-        "funcStart": 181,
-        "funcEnd": 310,
+        "start": 177,
+        "end": 361,
+        "funcStart": 231,
+        "funcEnd": 360,
         "cyMethodsUsed": [
           {
             "name": "goOffline",
-            "start": 198,
-            "end": 209,
+            "start": 248,
+            "end": 259,
             "arguments": [],
             "chain": []
           },
           {
             "name": "submitLogin",
-            "start": 219,
-            "end": 272,
+            "start": 269,
+            "end": 322,
             "arguments": [
               {
                 "type": "ObjectExpression",
-                "start": 231,
-                "end": 271
+                "start": 281,
+                "end": 321
               }
             ],
             "chain": [
@@ -251,15 +273,16 @@ We expected to get:
           },
           {
             "name": "expectErrorSnackbar",
-            "start": 282,
-            "end": 303,
+            "start": 332,
+            "end": 353,
             "arguments": [],
             "chain": [
               "goOffline",
               "submitLogin"
             ]
           }
-        ]
+        ],
+        "otherFuncCalls": []
       }
     ],
     "hooks": {
@@ -271,26 +294,41 @@ We expected to get:
               "name": "Login",
               "func": "describe",
               "start": 0,
-              "end": 319
+              "end": 369
             },
             {
               "name": "Error conditions",
               "func": "describe",
               "start": 28,
-              "end": 316
+              "end": 366
             }
           ],
           "start": 69,
-          "end": 121,
+          "end": 171,
           "funcStart": 80,
-          "funcEnd": 120,
+          "funcEnd": 170,
           "cyMethodsUsed": [
             {
               "name": "navigateToLogin",
-              "start": 97,
-              "end": 114,
-              "arguments": [],
+              "start": 140,
+              "end": 163,
+              "arguments": [
+                {
+                  "type": "Identifier",
+                  "start": 156,
+                  "end": 162
+                }
+              ],
               "chain": []
+            }
+          ],
+          "otherFuncCalls": [
+            {
+              "name": "utils.getNavParams",
+              "start": 115,
+              "rootStart": 109,
+              "end": 129,
+              "arguments": []
             }
           ]
         }
@@ -300,5 +338,4 @@ We expected to get:
     }
   }
 }
-
 ```

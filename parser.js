@@ -54,6 +54,8 @@ function findCyStuff(ast, options) {
     },
     // should we include "cyMethodsUsed" when we find added Cypress Command
     includeCyMethodsUsed: true,
+    // should we also gather other function calls in Cypress Command implementation?
+    includeOtherFuncCalls: true,
   }
   const _options = Object.assign(optionDefaults, options);
   const findAdded = Boolean(_options.find.added);
@@ -83,6 +85,7 @@ function findCyStuff(ast, options) {
             start: node.start,
             end: node.end,
             ...(_options.includeCyMethodsUsed && { cyMethodsUsed: findCyStuff(funcNode, { find: { used: true } }).used }),
+            ...(_options.includeOtherFuncCalls && { otherFuncCalls: findFuncCalls(funcNode, n => !n.startsWith('cy.'))}),
           });
 
         } else if (findUsed && dottedName.startsWith("cy.")) {
@@ -142,6 +145,7 @@ function findCyStuff(ast, options) {
             funcStart: funcNode.start,
             funcEnd: funcNode.end,
             ...(_options.includeCyMethodsUsed && { cyMethodsUsed: findCyStuff(funcNode, { find: { used: true } }).used }),
+            ...(_options.includeOtherFuncCalls && { otherFuncCalls: findFuncCalls(funcNode, n => !n.startsWith('cy.'))}),
             ...(scope.some((n) => n.skip) && { skip: true}),
             ...(scope.some((n) => n.only) && { only: true}),
           })
@@ -183,6 +187,7 @@ function findCyStuff(ast, options) {
             funcStart: funcNode.start,
             funcEnd: funcNode.end,
             ...(_options.includeCyMethodsUsed && { cyMethodsUsed: findCyStuff(funcNode, { find: { used: true } }).used }),
+            ...(_options.includeOtherFuncCalls && { otherFuncCalls: findFuncCalls(funcNode, n => !n.startsWith('cy.'))}),
           })
         }
       }
@@ -195,6 +200,35 @@ function findCyStuff(ast, options) {
     ...(findTests && { tests }),
     ...(findHooks && { hooks }),
   };
+}
+
+function findFuncCalls(ast, nameFilter) {
+  let calls = [];
+  walk.simple(ast, {
+    CallExpression: function (node) {
+      const dottedName = parseCallee(node);
+      if (!dottedName || (nameFilter && !nameFilter(dottedName))) {
+        // this call should be ignored. so do nothing.
+      } else {
+        const arguments = node.arguments.map(a => {
+          return {  // simply return type and position of each argument so caller can target and parse if required
+            type: a.type,
+            start: a.start,
+            end: a.end,
+          }
+        });
+
+        calls.push({
+          name: dottedName,
+          start: node.callee.property ? node.callee.property.start : node.start,
+          rootStart: node.start, // if chained calls, this != start
+          end: node.end,  // end at the end of the full call, including params and inner func.
+          arguments: arguments,
+        })
+      }
+    },
+  });
+  return calls;
 }
 
 function inferTestName(testCallNode) {
