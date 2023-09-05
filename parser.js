@@ -112,11 +112,22 @@ function findCyStuff(ast, options) {
             }
           });
 
+          const literalArguments = {};
+          let hasLiteralArguments = false;
+          node.arguments.forEach((a, i) => {
+            const value = maybeGetLiteralValue(a);
+            if (value) {
+              hasLiteralArguments = true;
+              literalArguments[i] = value;
+            }
+          });
+
           used.push({
             name: nameSegments.at(-1),
             start: node.callee.property.start,  // start at identifier in case this is chained
             end: node.end,  // end at the end of the full call, including params and inner func.
             arguments: arguments,
+            ...(hasLiteralArguments ? { literalArguments } : null),
             chain: chain,
           })
         } else if (findTests && isTestIdentifier(dottedName)) {
@@ -218,12 +229,23 @@ function findFuncCalls(ast, nameFilter) {
           }
         });
 
+        const literalArguments = {};
+        let hasLiteralArguments = false;
+        node.arguments.forEach((a, i) => {
+          const value = maybeGetLiteralValue(a);
+          if (value) {
+            hasLiteralArguments = true;
+            literalArguments[i] = value;
+          }
+        });
+
         calls.push({
           name: dottedName,
           start: node.callee.property ? node.callee.property.start : node.start,
           rootStart: node.start, // if chained calls, this != start
           end: node.end,  // end at the end of the full call, including params and inner func.
           arguments: arguments,
+          ...(hasLiteralArguments ? { literalArguments } : null),
         })
       }
     },
@@ -314,6 +336,50 @@ function parseCallee(node) {
   }
 }
 
+function maybeGetLiteralValue(node) {
+  if (node.type === 'Literal') {
+    return node.value;
+  } else if (node.type === 'ObjectExpression') {
+    // Try to see if all values can be mapped to literals
+    // WARN: this would probably go brrrrr if object has cyclic references
+    const output = {};
+    for (let i = 0; i < node.properties.length; i++) {
+      let prop = node.properties[i];
+      let key = getPropertyKey(prop);
+      if (!key) {
+        return undefined;
+      }
+      let value = maybeGetLiteralValue(prop.value);
+      if (!value) {
+        return undefined;
+      }
+      output[key] = value;
+    }
+    return output;
+  } else if (node.type === 'ArrayExpression') {
+    const output = [];
+    for (let i = 0; i < node.elements.length; i++) {
+      let value = maybeGetLiteralValue(node.elements[i]);
+      if (!value) {
+        return undefined;
+      }
+      output.push(value);
+    }
+    return output;
+  }
+
+  return undefined;
+}
+
+function getPropertyKey(propNode) {
+  if (!propNode.key) {
+    return undefined;
+  } else if (propNode.key.type === 'Literal') {
+    return propNode.key.value;
+  } else if (propNode.key.type === 'Identifier') {
+    return propNode.key.name;
+  }
+}
 
 module.exports = {
   parse,
