@@ -1,8 +1,12 @@
 const acorn = require("acorn");
 const walk = require("acorn-walk");
 const fs = require("fs");
+const { runQwilExtension } = require('./qwilExtension');
 const assert = require('assert').strict;
 const { interleaveArray } = require("./utils");
+const { parseCallee, maybeGetLiteralValue, nodeIsFunction, isTestIdentifier, isTestOrDescribeIdentifier, isSkip,
+  isOnly, SUPPORTED_HOOKS, inferTestName
+} = require('./parseUtils');
 
 
 function parse(source) {
@@ -42,7 +46,13 @@ at (${filePath}:${e.loc.line}:${e.loc.column})
 
 }
 
-const SUPPORTED_HOOKS = new Set(["before", "beforeEach", "after", "afterEach"]);
+function findInnerCypressCalls(funcNode) {
+  return findCyStuff(funcNode, { find: { used: true } }).used;
+}
+
+function findInnerFuncCalls(funcNode) {
+  return findFuncCalls(funcNode, n => !n.startsWith('cy.'));
+}
 
 function findCyStuff(ast, options) {
   const optionDefaults = {
@@ -56,17 +66,22 @@ function findCyStuff(ast, options) {
     includeCyMethodsUsed: true,
     // should we also gather other function calls in Cypress Command implementation?
     includeOtherFuncCalls: true,
+    // extra parsing explicit to Qwil use case
+    enableQwilExtension: false,
   }
+
   const _options = Object.assign(optionDefaults, options);
   const findAdded = Boolean(_options.find.added);
   const findUsed = Boolean(_options.find.used);
   const findTests = Boolean(_options.find.tests);
   const findHooks = Boolean(_options.find.hooks);
+  const qwilExtension = Boolean(_options.enableQwilExtension);
 
-  let added = [];
-  let used = [];
-  let tests = [];
-  let hooks = Object.fromEntries(Array.from(SUPPORTED_HOOKS).map((hook) => [hook, []]));
+  const added = [];
+  const used = [];
+  const tests = [];
+  const hooks = Object.fromEntries(Array.from(SUPPORTED_HOOKS).map((hook) => [hook, []]));
+  const errors = [];
 
   if (ast) {
     walk.ancestor(ast, {
@@ -84,8 +99,8 @@ function findCyStuff(ast, options) {
             name: nameNode.value,
             start: node.start,
             end: node.end,
-            ...(_options.includeCyMethodsUsed && { cyMethodsUsed: findCyStuff(funcNode, { find: { used: true } }).used }),
-            ...(_options.includeOtherFuncCalls && { otherFuncCalls: findFuncCalls(funcNode, n => !n.startsWith('cy.'))}),
+            ...(_options.includeCyMethodsUsed && { cyMethodsUsed: findInnerCypressCalls(funcNode) }),
+            ...(_options.includeOtherFuncCalls && { otherFuncCalls: findInnerFuncCalls(funcNode) }),
           });
 
         } else if (findUsed && dottedName.startsWith("cy.")) {
@@ -131,7 +146,24 @@ function findCyStuff(ast, options) {
             chain: chain,
           })
         } else if (findTests && isTestIdentifier(dottedName)) {
+          if (node.arguments.length < 2) {
+            errors.push({
+              message: `'${dottedName}' has insufficient number of arguments`,
+              loc: node.start,
+            })
+            console.log(node);
+            return;
+          }
+
           let funcNode = node.arguments[1];
+          if (!nodeIsFunction(funcNode)) {
+            errors.push({
+              message: `function expected, but found ${funcNode.type}`,
+              loc: funcNode.start,
+            })
+            console.log(node);
+            return;
+          }
 
           let scopeNodes = ancestors
             .filter((n) => n.type === "CallExpression")
@@ -155,8 +187,8 @@ function findCyStuff(ast, options) {
             end: node.end,
             funcStart: funcNode.start,
             funcEnd: funcNode.end,
-            ...(_options.includeCyMethodsUsed && { cyMethodsUsed: findCyStuff(funcNode, { find: { used: true } }).used }),
-            ...(_options.includeOtherFuncCalls && { otherFuncCalls: findFuncCalls(funcNode, n => !n.startsWith('cy.'))}),
+            ...(_options.includeCyMethodsUsed && { cyMethodsUsed: findInnerCypressCalls(funcNode) }),
+            ...(_options.includeOtherFuncCalls && { otherFuncCalls: findInnerFuncCalls(funcNode) }),
             ...(scope.some((n) => n.skip) && { skip: true}),
             ...(scope.some((n) => n.only) && { only: true}),
           })
@@ -166,7 +198,7 @@ function findCyStuff(ast, options) {
             return;
           }
           let funcNode = node.arguments[0];
-          if (funcNode.type !== "FunctionExpression" && funcNode.type !== "ArrowFunctionExpression") {
+          if (!nodeIsFunction(funcNode)) {
             return
           }
 
@@ -197,12 +229,22 @@ function findCyStuff(ast, options) {
             end: node.end,
             funcStart: funcNode.start,
             funcEnd: funcNode.end,
-            ...(_options.includeCyMethodsUsed && { cyMethodsUsed: findCyStuff(funcNode, { find: { used: true } }).used }),
-            ...(_options.includeOtherFuncCalls && { otherFuncCalls: findFuncCalls(funcNode, n => !n.startsWith('cy.'))}),
+            ...(_options.includeCyMethodsUsed && { cyMethodsUsed: findInnerCypressCalls(funcNode) }),
+            ...(_options.includeOtherFuncCalls && { otherFuncCalls: findInnerFuncCalls(funcNode) }),
           })
         }
       }
     });
+  }
+
+  const extensions = {};
+  if (qwilExtension) {
+    const output = runQwilExtension(ast, { findInnerCypressCalls, findInnerFuncCalls });
+    if (output.errors) {
+      output.errors.forEach(function(e) {errors.push(e)});
+      delete output.errors;
+    }
+    Object.assign(extensions, output)
   }
 
   return {
@@ -210,6 +252,8 @@ function findCyStuff(ast, options) {
     ...(findUsed && { used }),
     ...(findTests && { tests }),
     ...(findHooks && { hooks }),
+    ...extensions,
+    errors,
   };
 }
 
@@ -251,134 +295,6 @@ function findFuncCalls(ast, nameFilter) {
     },
   });
   return calls;
-}
-
-function inferTestName(testCallNode) {
-  const node = testCallNode.arguments[0];
-
-  if (node.type === "Literal") {
-    return node.value;
-  } else if (node.type === "TemplateLiteral") {
-    let expressions = node.expressions.map((i) => `\${${i.name}}`);
-    let quasis = node.quasis.map((q) => q.value.raw);
-    return interleaveArray(quasis, expressions).join("");
-  } else if (node.type === "Identifier") {
-    return `\${${node.name}}`;
-  } else {
-    return `[Unparseable: ${node.type}]`
-  }
-}
-
-
-function isTestOrDescribeIdentifier(ident) {
-  return isTestIdentifier(ident) || isDescribeIdentifier(ident);
-}
-
-function isTestIdentifier(ident) {
-  return ident === "it" || ident.startsWith("it.");
-}
-
-function isDescribeIdentifier(ident) {
-  return ident === "describe" || ident.startsWith("describe.");
-}
-
-function isSkip(ident) {
-  return ident.endsWith(".skip");
-}
-
-function isOnly(ident) {
-  return ident.endsWith(".only");
-}
-
-
-function IgnoreMe(node) {
-  this.node = node;
-}
-
-function parseCallee(node) {
-  /**
-   * Returns string representation of a CallExpression's callees, e.g.
-   *  - "Cypress.Commands.add"
-   *  - "cy.funcA().funcB"
-   */
-  assert(node.type === "CallExpression", "This method should only be called on CallExpression nodes");
-  try {
-    return _traverse(node.callee);
-  } catch (e) {
-    if (e instanceof IgnoreMe) {
-      return null;
-    } else {
-      throw e;
-    }
-  }
-
-  function _traverse(_node, suffix = "") {
-    switch (_node.type) {
-      case "Identifier":
-        return _node.name;
-      case "MemberExpression":
-        return _traverse(_node.object) + "." + _node.property.name + suffix;
-      case "CallExpression":
-        return _traverse(_node.callee, "()");
-      default:
-        /**
-         * calls could be chained to many other types, e.g.:
-         *  - ArrayExpression:  [...].sort(..)
-         *  - Literal: "...".repeat(10)
-         *  - TemplateLiteral: `...`.repeat(10)
-         *  - NewExpression: new Blah()
-         *  - ...
-         *
-         * We do not want to handle any of that for now, so we throw end recursion and caller will catch to handle this
-         */
-        throw new IgnoreMe(node);
-    }
-  }
-}
-
-function maybeGetLiteralValue(node) {
-  if (node.type === 'Literal') {
-    return node.value;
-  } else if (node.type === 'ObjectExpression') {
-    // Try to see if all values can be mapped to literals
-    // WARN: this would probably go brrrrr if object has cyclic references
-    const output = {};
-    for (let i = 0; i < node.properties.length; i++) {
-      let prop = node.properties[i];
-      let key = getPropertyKey(prop);
-      if (!key) {
-        return undefined;
-      }
-      let value = maybeGetLiteralValue(prop.value);
-      if (!value) {
-        return undefined;
-      }
-      output[key] = value;
-    }
-    return output;
-  } else if (node.type === 'ArrayExpression') {
-    const output = [];
-    for (let i = 0; i < node.elements.length; i++) {
-      let value = maybeGetLiteralValue(node.elements[i]);
-      if (!value) {
-        return undefined;
-      }
-      output.push(value);
-    }
-    return output;
-  }
-
-  return undefined;
-}
-
-function getPropertyKey(propNode) {
-  if (!propNode.key) {
-    return undefined;
-  } else if (propNode.key.type === 'Literal') {
-    return propNode.key.value;
-  } else if (propNode.key.type === 'Identifier') {
-    return propNode.key.name;
-  }
 }
 
 module.exports = {

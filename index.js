@@ -19,6 +19,7 @@ async function main() {
 
   program.command('dump')
     .description("Dump parse results to stdout as JSON")
+    .option('--qwil', 'enable Qwil extension')
     .addHelpText("after", `
 Examples:
 
@@ -27,8 +28,8 @@ Examples:
   ${binName} dump ./tests/a.js  # parse a single file
     `)
     .argument('<file_or_dir...>', 'files or dirs to parse')
-    .action(async (paths) => {
-      await doDump(paths);
+    .action(async (paths, options) => {
+      await doDump(paths, options.qwil);
     })
 
   program.command('find')
@@ -49,12 +50,13 @@ Examples:
 }
 
 
-async function doDump(paths) {
+async function doDump(paths, enableQwilExtension = false) {
   const filenames = resolvePaths(paths);
   let out = {};
   for (const filename of filenames) {
     out[filename] = findCyStuff(
-      await readFileAndParseAST(path.resolve(filename))
+      await readFileAndParseAST(path.resolve(filename)),
+      { enableQwilExtension }
     );
   }
   console.log(JSON.stringify(out, null, 2));
