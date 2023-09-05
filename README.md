@@ -54,7 +54,11 @@ The output will be in the following format, with an entry for every parsed file:
       "beforeEach": [],  // Array of HookObj (see definition below)
       "after": [],       // Array of HookObj (see definition below)
       "afterEach": []    // Array of HookObj (see definition below)
-    }
+    },
+    "errors": [],        // Array of DeferredErrorObj, for issues that should not stop parsing but worth noting
+    
+    // If Qwil Extension enabled
+    "scenarios": [],     // Array of ScenarioObj  (see definition below)
   }
 }
 ```
@@ -70,6 +74,7 @@ The output will be in the following format, with an entry for every parsed file:
   "start": Number, // char offset in file where usage started
   "end": Number,   // char offset in file where usage ended
   "arguments": Array[CommandArgObj],  // type and char offsets for command arguments 
+  "literalArguments"?: Object, // Actual values of arguments if they can be evaluated statically, indexed by argument index
   "chain": Array[String], // chain of cy calls leading to this. 
                           // e.g cy.a().b().c() will result in {"chain": ["a", "b"], "name": "c"}
 }
@@ -93,7 +98,16 @@ The output will be in the following format, with an entry for every parsed file:
   "rootStart": Number, // this points to actual start i.e. in the case of "hello.kitty()", start would point to "h"
   "end": Number,   // char offset in file where function call ended
   "arguments": Array[CommandArgObj],  // type and char offsets for function call arguments 
+  "literalArguments"?: Object, // Actual values of arguments if they can be evaluated statically, indexed by argument index
 }
+```
+
+Note that if the function call was part of a chain of calls, _"name"_ would capture that chain. For example:
+```javascript
+assertSomething(); // name = "assertSomething"
+this.setup(); // name = "this.setup"
+api({ sync: false }).myFuncCall(/* params */); // name = "api().myFuncCall"
+someLib.init().helpers.doSomething().decode(); // name = "someLib.init().helpers.doSomething().decode"
 ```
 
 **`CommmandAddObj`:**
@@ -146,6 +160,15 @@ The output will be in the following format, with an entry for every parsed file:
   "only"?: Boolean, // If .only
 }
 ```
+
+**`DeferredErrorObj`:**
+```text
+{
+  "message": String,  // Error message
+  "loc": Number,    // char offset in file where error was detected
+}
+```
+
 
 **Example Usage:**
 ```
@@ -207,6 +230,12 @@ We expected to get:
             "end": 321
           }
         ],
+        "literalArguments": {
+          "0": {
+            "username": "bob",
+            "password": "builder"
+          }
+        },
         "chain": [
           "goOffline"
         ]
@@ -267,6 +296,12 @@ We expected to get:
                 "end": 321
               }
             ],
+            "literalArguments": {
+              "0": {
+                "username": "bob",
+                "password": "builder"
+              }
+            },
             "chain": [
               "goOffline"
             ]
@@ -335,7 +370,9 @@ We expected to get:
       ],
       "after": [],
       "afterEach": []
-    }
+    },
+    "errors": []
   }
 }
+
 ```

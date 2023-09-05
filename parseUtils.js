@@ -13,7 +13,7 @@ function parseCallee(node) {
    *  - "Cypress.Commands.add"
    *  - "cy.funcA().funcB"
    */
-  assert(node.type === "CallExpression", "This method should only be called on CallExpression nodes");
+  assert(node.type === 'CallExpression', 'This method should only be called on CallExpression nodes');
   try {
     return _traverse(node.callee);
   } catch (e) {
@@ -24,14 +24,16 @@ function parseCallee(node) {
     }
   }
 
-  function _traverse(_node, suffix = "") {
+  function _traverse(_node) {
     switch (_node.type) {
-      case "Identifier":
+      case 'Identifier':
         return _node.name;
-      case "MemberExpression":
-        return _traverse(_node.object) + "." + _node.property.name + suffix;
-      case "CallExpression":
-        return _traverse(_node.callee, "()");
+      case 'MemberExpression':
+        return _traverse(_node.object) + '.' + _node.property.name;
+      case 'CallExpression':
+        return _traverse(_node.callee) + '()';
+      case 'ThisExpression':
+        return 'this';
       default:
         /**
          * calls could be chained to many other types, e.g.:

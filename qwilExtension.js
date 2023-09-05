@@ -16,6 +16,10 @@ function runQwilExtension(ast, helpers) {
     walk.ancestor(ast, {
       CallExpression: function(node, ancestors) {
         const dottedName = parseCallee(node);
+        if (!dottedName) {
+          return; // ignore calls without name identifiers e.g. [].push(...)
+        }
+
         if (dottedName === "describe") {
           validateDescribeMembers(node).forEach(e => errors.push(e));
         } else if (dottedName.startsWith(SCENARIO_PREFIX)) {
@@ -50,6 +54,14 @@ function validateDescribeMembers(node) {
     return errors;
   }
 
+  if (node.arguments[0].type !== 'Literal') {
+    errors.push({
+      message: `[MAYBE FACTORY] 'describe' has non-literal name. Assuming this is a test factory. Some checks disabled.`,
+      loc: node.start,
+    })
+    return errors;
+  }
+
   const implNode = node.arguments[1];
   if (!nodeIsFunction(implNode)) {
     errors.push({
@@ -63,6 +75,9 @@ function validateDescribeMembers(node) {
   implNode.body.body.forEach(function(n) {
     if (n.type === "ExpressionStatement" && n.expression.type === "CallExpression") {
       const dottedName = parseCallee(n.expression);
+      if (!dottedName) {
+        return; // ignore calls without name identifiers e.g. [].push(...)
+      }
       // allow tests and describes and hooks
       if (isTestOrDescribeIdentifier(dottedName) || SUPPORTED_HOOKS.has(dottedName)) {
         return;
@@ -75,7 +90,7 @@ function validateDescribeMembers(node) {
 
       // everything else banned
       errors.push({
-        message: `'describe' should only call tests or hooks. Found '${dottedName}`,
+        message: `[PURE DESCRIBE] 'describe' should only call tests or hooks. Found '${dottedName}`,
         loc: n.start,
       })
     }
@@ -137,16 +152,13 @@ function parseScenario(node, ancestors, helpers) {
   // Inspect top-level properly for object argument
   argNode.properties.forEach(function(propNode) {
     const propName = getPropertyKey(propNode);
-    if (propNode.shorthand) {
-      errors.push({
-        message: `${name}: Object prop shorthand not allowed for scenario factory - { ${propName} }`,
-        loc: propNode.start,
-      });
-      return;
-    }
-
     if (propName.endsWith(SCENARIO_FN_SUFFIX)) {
-      if (!nodeIsFunction(propNode.value)) {
+      if (propNode.shorthand) {
+        errors.push({
+          message: `${name}: Object prop shorthand not allowed for scenario factory - { ${propName} }`,
+          loc: propNode.start,
+        });
+      } else if (!nodeIsFunction(propNode.value)) {
         errors.push({
           message: `${name}: '${propName}' prop value must be a function. Found ${propNode.value.type}`,
           loc: propNode.value.start,
