@@ -46,7 +46,7 @@ The output will be in the following format, with an entry for every parsed file:
 ```text
 {
   "path/to/file.js": {
-    "used": [],  // Array of CommmandUseObj (see definition below)
+    "used": [],  // Array of CommandUseObj (see definition below)
     "added": [], // Array of CommmandAddObj (see definition below)
     "tests": []  // Array of TestObj (see definition below)
     "hooks": {
@@ -67,7 +67,7 @@ The output will be in the following format, with an entry for every parsed file:
 * `"added"` will list out all the Cypress commands added in that file
 * `"tests"` will list out all the Cypress tests defined in that file
 
-**`CommmandUseObj`:**
+**`CommandUseObj`:**
 ```text
 {
   "name": String,  // name of the cy command used
@@ -116,7 +116,7 @@ someLib.init().helpers.doSomething().decode(); // name = "someLib.init().helpers
   "name": String,  // name of the Cypress command added
   "start": Number, // char offset in file where definition started
   "end": Number,   // char offset in file where definition ended
-  "cyMethodsUsed": Array[CommmandUseObj],  // cy methods used within the implementation of this command
+  "cyMethodsUsed": Array[CommandUseObj],  // cy methods used within the implementation of this command
   "otherFuncCalls": Array[FuncCallObj],  // function calls (excluding cy.*) within the implementation of this command
 }
 ```
@@ -129,7 +129,7 @@ someLib.init().helpers.doSomething().decode(); // name = "someLib.init().helpers
   "end": Number,   // char offset in file where definition ended
   "funcStart": Number, // char offset in file where definition of test implementation function started
   "funcEnd": Number, // char offset in file where definition of test implementation function ended
-  "cyMethodsUsed": Array[CommmandUseObj],  // cy methods used within the implementation of this test
+  "cyMethodsUsed": Array[CommandUseObj],  // cy methods used within the implementation of this test
   "otherFuncCalls": Array[FuncCallObj],  // function calls (excluding cy.*) within the implementation of this command
   "skip"?: Boolean, // If this test was effectively skipped, either by it.skip or describe.skip on parent scope
   "only"?: Boolean, // If this test was effectively set to "only", either by it.only or describe.only on parent scope
@@ -144,7 +144,7 @@ someLib.init().helpers.doSomething().decode(); // name = "someLib.init().helpers
   "end": Number,   // char offset in file where definition ended
   "funcStart": Number, // char offset in file where definition of test implementation function started
   "funcEnd": Number, // char offset in file where definition of test implementation function ended
-  "cyMethodsUsed": Array[CommmandUseObj],  // cy methods used within the implementation of this test
+  "cyMethodsUsed": Array[CommandUseObj],  // cy methods used within the implementation of this test
   "otherFuncCalls": Array[FuncCallObj],  // function calls (excluding cy.*) within the implementation of this command
 }
 ```
@@ -158,6 +158,30 @@ someLib.init().helpers.doSomething().decode(); // name = "someLib.init().helpers
   "end": Number,    // char offset in file where definition ended
   "skip"?: Boolean, // If .skip
   "only"?: Boolean, // If .only
+}
+```
+
+**`ScenarioObj`:**
+```text
+{
+  "name": String,   // Scenario name
+  "scope": Array[ScopeObj], // Describes nesting scope
+  "start": Number,  // char offset in file where scenario definition started
+  "end": Number,    // char offset in file where scenario definition ended
+  "functions": Array[ScenarioFuncObj],
+}
+```
+
+**`ScenarioFuncObj`:**
+```text
+{
+  "name": String,   // Scenario function name
+  "start": Number, // char offset in file where scenario function property declaration started
+  "end": Number,   // char offset in file where scenario function property declaration ended
+  "funcStart": Number, // char offset in file where definition of scenario function implementation started
+  "funcEnd": Number, // char offset in file where definition of scenario function implementation ended
+  "cyMethodsUsed": Array[CommandUseObj],  // cy methods used within the implementation of this test
+  "otherFuncCalls": Array[FuncCallObj],  // function calls (excluding cy.*) within the implementation of this command
 }
 ```
 
